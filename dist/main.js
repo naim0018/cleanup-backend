@@ -32,19 +32,48 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.default = default_1;
 const core_1 = require("@nestjs/core");
+const platform_express_1 = require("@nestjs/platform-express");
 const app_module_1 = require("./app.module");
 const dotenv = __importStar(require("dotenv"));
+const express_1 = __importDefault(require("express"));
 dotenv.config();
+const server = (0, express_1.default)();
+let isAppInitialized = false;
 async function bootstrap() {
-    const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    const app = await core_1.NestFactory.create(app_module_1.AppModule, new platform_express_1.ExpressAdapter(server));
     app.enableCors({
         origin: '*',
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
         credentials: true,
     });
-    await app.listen(process.env.PORT ?? 3000);
+    await app.init();
+    isAppInitialized = true;
 }
-bootstrap();
+if (!process.env.VERCEL) {
+    bootstrap().then(() => {
+        const port = process.env.PORT ?? 3000;
+        server.listen(port, () => {
+            console.log(`Server is running on port ${port}`);
+        });
+    });
+}
+async function default_1(req, res) {
+    if (!isAppInitialized) {
+        try {
+            await bootstrap();
+        }
+        catch (error) {
+            console.error('Failed to initialize NestJS application:', error);
+            res.status(500).json({ error: 'Internal Server Error', message: 'Failed to initialize backend. Check Vercel logs and ensure MONGODB_URI is set.' });
+            return;
+        }
+    }
+    server(req, res);
+}
 //# sourceMappingURL=main.js.map
