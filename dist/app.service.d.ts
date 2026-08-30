@@ -7,7 +7,14 @@ export declare class AppService {
         message: string;
         type: "info" | "success" | "warning";
     }>;
+    private repoLogs;
     constructor(scanHistoryService: ScanHistoryService);
+    addRepoLog(repo: string, message: string, type?: 'info' | 'success' | 'warning' | 'error'): void;
+    getRepoLogs(repo: string): {
+        time: string;
+        level: string;
+        message: string;
+    }[];
     private getHeaders;
     listRepositories(token: string): Promise<{
         id: any;

@@ -42,8 +42,21 @@ const MALWARE_SIGNATURES = [
 let AppService = class AppService {
     scanHistoryService;
     scanLog$ = new rxjs_1.Subject();
+    repoLogs = new Map();
     constructor(scanHistoryService) {
         this.scanHistoryService = scanHistoryService;
+    }
+    addRepoLog(repo, message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const logItem = { time: timestamp, level: type, message };
+        this.scanLog$.next({ repo, message, type: type === 'error' ? 'warning' : type });
+        if (!this.repoLogs.has(repo)) {
+            this.repoLogs.set(repo, []);
+        }
+        this.repoLogs.get(repo).push(logItem);
+    }
+    getRepoLogs(repo) {
+        return this.repoLogs.get(repo) || [];
     }
     getHeaders(token) {
         return {
@@ -139,18 +152,18 @@ let AppService = class AppService {
     }
     async scanRepository(token, fullName, githubLogin, repoId) {
         try {
-            this.scanLog$.next({ repo: fullName, message: `Fetching repository branch configurations...`, type: 'info' });
+            this.addRepoLog(fullName, `Fetching repository branch configurations...`, 'info');
             const repoInfo = await axios_1.default.get(`https://api.github.com/repos/${fullName}`, {
                 headers: this.getHeaders(token),
             });
             const defaultBranch = repoInfo.data.default_branch || 'main';
-            this.scanLog$.next({ repo: fullName, message: `Loading recursive directory structure for tree root...`, type: 'info' });
+            this.addRepoLog(fullName, `Loading recursive directory structure for tree root...`, 'info');
             const treeResponse = await axios_1.default.get(`https://api.github.com/repos/${fullName}/git/trees/${defaultBranch}?recursive=1`, { headers: this.getHeaders(token) });
             const items = treeResponse.data.tree || [];
             const codeFiles = items.filter((item) => item.type === 'blob');
             const hasGitignore = items.some((item) => item.path === '.gitignore');
             const gitignoreSha = items.find((item) => item.path === '.gitignore')?.sha || '';
-            this.scanLog$.next({ repo: fullName, message: `Discovered ${codeFiles.length} JScript/TypeScript files to audit.`, type: 'info' });
+            this.addRepoLog(fullName, `Discovered ${codeFiles.length} JScript/TypeScript files to audit.`, 'info');
             const threats = [];
             let totalFilesScanned = 0;
             const batchSize = 10;
@@ -158,10 +171,10 @@ let AppService = class AppService {
                 const batch = codeFiles.slice(i, i + batchSize);
                 await Promise.all(batch.map(async (file) => {
                     try {
-                        this.scanLog$.next({ repo: fullName, message: `Auditing code buffer: ${file.path}`, type: 'info' });
+                        this.addRepoLog(fullName, `Auditing code buffer: ${file.path}`, 'info');
                         const filename = file.path.split('/').pop() || '';
                         if (filename.startsWith('.env') && filename !== '.env.example') {
-                            this.scanLog$.next({ repo: fullName, message: `⚠️ Exposed environment config leaked: ${file.path}!`, type: 'warning' });
+                            this.addRepoLog(fullName, `⚠️ Exposed environment config leaked: ${file.path}!`, 'warning');
                             let gitignoreContent = '';
                             try {
                                 if (hasGitignore) {
@@ -205,7 +218,7 @@ let AppService = class AppService {
                         const lines = content.split('\n');
                         for (const signature of MALWARE_SIGNATURES) {
                             if (signature.regex.test(content)) {
-                                this.scanLog$.next({ repo: fullName, message: `⚠️ Malicious signature trigger found in ${file.path}! type: ${signature.type}`, type: 'warning' });
+                                this.addRepoLog(fullName, `⚠️ Malicious signature trigger found in ${file.path}! type: ${signature.type}`, 'warning');
                                 let matchLine = 1;
                                 for (let l = 0; l < lines.length; l++) {
                                     if (signature.regex.test(lines[l])) {
@@ -234,7 +247,7 @@ let AppService = class AppService {
                     }
                 }));
             }
-            this.scanLog$.next({ repo: fullName, message: `Repository scan complete. Audited ${totalFilesScanned} files. Detections count: ${threats.length}`, type: 'success' });
+            this.addRepoLog(fullName, `Repository scan complete. Audited ${totalFilesScanned} files. Detections count: ${threats.length}`, 'success');
             if (githubLogin && typeof repoId === 'number') {
                 try {
                     await this.scanHistoryService.upsertScanRecord({
@@ -244,6 +257,7 @@ let AppService = class AppService {
                         filesScanned: totalFilesScanned,
                         threatsFound: threats.length,
                         status: threats.length > 0 ? 'scanned' : 'cleaned',
+                        threats: threats,
                     });
                 }
                 catch (e) { }
@@ -255,13 +269,13 @@ let AppService = class AppService {
             };
         }
         catch (error) {
-            this.scanLog$.next({ repo: fullName, message: `Scan aborted: ${error.message}`, type: 'warning' });
+            this.addRepoLog(fullName, `Scan aborted: ${error.message}`, 'warning');
             throw new common_1.HttpException(error.response?.data?.message || 'Failed to scan repository contents.', error.response?.status || common_1.HttpStatus.BAD_REQUEST);
         }
     }
     async cleanFile(token, fullName, filePath, sha, cleanedCode, deleteFilePath, githubLogin, repoId, malwareType, severity) {
         try {
-            this.scanLog$.next({ repo: fullName, message: `Patching files: Updating ${filePath}...`, type: 'info' });
+            this.addRepoLog(fullName, `Patching files: Updating ${filePath}...`, 'info');
             let commitSha = '';
             const response = await axios_1.default.put(`https://api.github.com/repos/${fullName}/contents/${filePath}`, {
                 message: `security: patch malware/vulnerability leaks in ${filePath}`,
@@ -272,7 +286,7 @@ let AppService = class AppService {
             });
             commitSha = response.data.commit.sha;
             if (deleteFilePath) {
-                this.scanLog$.next({ repo: fullName, message: `Removing leaked config file from repository: ${deleteFilePath}...`, type: 'warning' });
+                this.addRepoLog(fullName, `Removing leaked config file from repository: ${deleteFilePath}...`, 'warning');
                 const fileData = await axios_1.default.get(`https://api.github.com/repos/${fullName}/contents/${deleteFilePath}`, { headers: this.getHeaders(token) });
                 await axios_1.default.delete(`https://api.github.com/repos/${fullName}/contents/${deleteFilePath}`, {
                     headers: this.getHeaders(token),
@@ -282,7 +296,7 @@ let AppService = class AppService {
                     },
                 });
             }
-            this.scanLog$.next({ repo: fullName, message: `Clean task complete. Reference commit: ${commitSha.substring(0, 8)}`, type: 'success' });
+            this.addRepoLog(fullName, `Clean task complete. Reference commit: ${commitSha.substring(0, 8)}`, 'success');
             if (githubLogin && repoId) {
                 try {
                     await this.scanHistoryService.markFileCleaned({
@@ -302,7 +316,7 @@ let AppService = class AppService {
             };
         }
         catch (error) {
-            this.scanLog$.next({ repo: fullName, message: `Remediation failed: ${error.message}`, type: 'warning' });
+            this.addRepoLog(fullName, `Remediation failed: ${error.message}`, 'warning');
             throw new common_1.HttpException(error.response?.data?.message || 'Failed to patch file contents on GitHub.', error.response?.status || common_1.HttpStatus.BAD_REQUEST);
         }
     }

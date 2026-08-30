@@ -44,6 +44,9 @@ export class ScanHistory {
   @Prop({ type: [{ filePath: String, malwareType: String, severity: String, cleanedAt: Date }], default: [] })
   cleanedFiles: CleanedFile[];
 
+  @Prop({ type: [Object], default: [] })
+  threats: any[];
+
   @Prop({ default: Date.now })
   lastScanDate: Date;
 }

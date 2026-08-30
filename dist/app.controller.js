@@ -74,6 +74,12 @@ let AppController = class AppController {
         }
         return this.scanHistoryService.getHistory(githubLogin);
     }
+    async getLogs(fullName) {
+        if (!fullName) {
+            throw new common_1.HttpException('fullName query parameter is required.', common_1.HttpStatus.BAD_REQUEST);
+        }
+        return this.appService.getRepoLogs(fullName);
+    }
     async getRateLimit(authHeader) {
         const token = this.extractToken(authHeader);
         try {
@@ -144,6 +150,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AppController.prototype, "getHistory", null);
+__decorate([
+    (0, common_1.Get)('logs'),
+    __param(0, (0, common_1.Query)('fullName')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "getLogs", null);
 __decorate([
     (0, common_1.Get)('rate-limit'),
     __param(0, (0, common_1.Headers)('authorization')),

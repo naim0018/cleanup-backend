@@ -46,6 +46,7 @@ let ScanHistory = class ScanHistory {
     threatsCleaned;
     status;
     cleanedFiles;
+    threats;
     lastScanDate;
 };
 exports.ScanHistory = ScanHistory;
@@ -81,6 +82,10 @@ __decorate([
     (0, mongoose_1.Prop)({ type: [{ filePath: String, malwareType: String, severity: String, cleanedAt: Date }], default: [] }),
     __metadata("design:type", Array)
 ], ScanHistory.prototype, "cleanedFiles", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [Object], default: [] }),
+    __metadata("design:type", Array)
+], ScanHistory.prototype, "threats", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: Date.now }),
     __metadata("design:type", Date)

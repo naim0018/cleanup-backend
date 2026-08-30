@@ -95,6 +95,14 @@ export class AppController {
     return this.scanHistoryService.getHistory(githubLogin);
   }
 
+  @Get('logs')
+  async getLogs(@Query('fullName') fullName: string) {
+    if (!fullName) {
+      throw new HttpException('fullName query parameter is required.', HttpStatus.BAD_REQUEST);
+    }
+    return this.appService.getRepoLogs(fullName);
+  }
+
   @Get('rate-limit')
   async getRateLimit(@Headers('authorization') authHeader?: string) {
     const token = this.extractToken(authHeader);

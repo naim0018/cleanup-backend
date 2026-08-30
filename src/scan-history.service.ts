@@ -17,6 +17,7 @@ export class ScanHistoryService {
     filesScanned: number;
     threatsFound: number;
     status: string;
+    threats: any[];
   }) {
     return this.scanHistoryModel.findOneAndUpdate(
       { githubLogin: data.githubLogin, repoId: data.repoId },
@@ -27,8 +28,9 @@ export class ScanHistoryService {
           threatsFound: data.threatsFound,
           status: data.status,
           lastScanDate: new Date(),
-          // Reset cleanedFiles count when rescanning
-          ...(data.status === 'scanned' && data.threatsFound === 0 ? { cleanedFiles: [] } : {}),
+          threats: data.threats,
+          threatsCleaned: 0,
+          cleanedFiles: [],
         },
       },
       { upsert: true, new: true },
@@ -42,10 +44,31 @@ export class ScanHistoryService {
     malwareType: string;
     severity: string;
   }) {
+    const doc = await this.scanHistoryModel.findOne({ githubLogin: data.githubLogin, repoId: data.repoId });
+    if (!doc) return null;
+
+    const threats = doc.threats || [];
+    let updated = false;
+    for (const t of threats) {
+      if (t.filePath === data.filePath && !t.isCleaned) {
+        t.isCleaned = true;
+        updated = true;
+        break; // Mark one matching threat as clean
+      }
+    }
+
+    const threatsCleaned = (doc.threatsCleaned || 0) + (updated ? 1 : 0);
+    const allCleaned = threats.every((t: any) => t.isCleaned);
+    const status = allCleaned ? 'cleaned' : 'scanned';
+
     return this.scanHistoryModel.findOneAndUpdate(
       { githubLogin: data.githubLogin, repoId: data.repoId },
       {
-        $inc: { threatsCleaned: 1 },
+        $set: {
+          threats,
+          threatsCleaned,
+          status,
+        },
         $addToSet: {
           cleanedFiles: {
             filePath: data.filePath,
@@ -54,7 +77,6 @@ export class ScanHistoryService {
             cleanedAt: new Date(),
           },
         },
-        $set: { status: 'cleaned' },
       },
       { new: true },
     );

@@ -42,8 +42,27 @@ const MALWARE_SIGNATURES: MalwareSignature[] = [
 @Injectable()
 export class AppService {
   public scanLog$ = new Subject<{ repo: string; message: string; type: 'info' | 'success' | 'warning' }>();
+  private repoLogs = new Map<string, Array<{ time: string; level: string; message: string }>>();
 
   constructor(private readonly scanHistoryService: ScanHistoryService) { }
+
+  public addRepoLog(repo: string, message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const logItem = { time: timestamp, level: type, message };
+
+    // SSE Stream
+    this.scanLog$.next({ repo, message, type: type === 'error' ? 'warning' : type });
+
+    // In-memory array for polling
+    if (!this.repoLogs.has(repo)) {
+      this.repoLogs.set(repo, []);
+    }
+    this.repoLogs.get(repo)!.push(logItem);
+  }
+
+  public getRepoLogs(repo: string) {
+    return this.repoLogs.get(repo) || [];
+  }
 
   private getHeaders(token: string) {
     return {
@@ -151,14 +170,14 @@ export class AppService {
 
   async scanRepository(token: string, fullName: string, githubLogin?: string, repoId?: number) {
     try {
-      this.scanLog$.next({ repo: fullName, message: `Fetching repository branch configurations...`, type: 'info' });
+      this.addRepoLog(fullName, `Fetching repository branch configurations...`, 'info');
       // 1. Get default branch first
       const repoInfo = await axios.get(`https://api.github.com/repos/${fullName}`, {
         headers: this.getHeaders(token),
       });
       const defaultBranch = repoInfo.data.default_branch || 'main';
 
-      this.scanLog$.next({ repo: fullName, message: `Loading recursive directory structure for tree root...`, type: 'info' });
+      this.addRepoLog(fullName, `Loading recursive directory structure for tree root...`, 'info');
       // 2. Fetch Git tree recursively
       const treeResponse = await axios.get(
         `https://api.github.com/repos/${fullName}/git/trees/${defaultBranch}?recursive=1`,
@@ -172,7 +191,7 @@ export class AppService {
       const hasGitignore = items.some((item) => item.path === '.gitignore');
       const gitignoreSha = items.find((item) => item.path === '.gitignore')?.sha || '';
 
-      this.scanLog$.next({ repo: fullName, message: `Discovered ${codeFiles.length} JScript/TypeScript files to audit.`, type: 'info' });
+      this.addRepoLog(fullName, `Discovered ${codeFiles.length} JScript/TypeScript files to audit.`, 'info');
 
       const threats: any[] = [];
       let totalFilesScanned = 0;
@@ -184,12 +203,12 @@ export class AppService {
         await Promise.all(
           batch.map(async (file) => {
             try {
-              this.scanLog$.next({ repo: fullName, message: `Auditing code buffer: ${file.path}`, type: 'info' });
+              this.addRepoLog(fullName, `Auditing code buffer: ${file.path}`, 'info');
 
               // Handle .env leaks detection
               const filename = file.path.split('/').pop() || '';
               if (filename.startsWith('.env') && filename !== '.env.example') {
-                this.scanLog$.next({ repo: fullName, message: `⚠️ Exposed environment config leaked: ${file.path}!`, type: 'warning' });
+                this.addRepoLog(fullName, `⚠️ Exposed environment config leaked: ${file.path}!`, 'warning');
 
                 // Fetch gitignore to see if we can edit it or create a new one
                 let gitignoreContent = '';
@@ -249,7 +268,7 @@ export class AppService {
 
               for (const signature of MALWARE_SIGNATURES) {
                 if (signature.regex.test(content)) {
-                  this.scanLog$.next({ repo: fullName, message: `⚠️ Malicious signature trigger found in ${file.path}! type: ${signature.type}`, type: 'warning' });
+                  this.addRepoLog(fullName, `⚠️ Malicious signature trigger found in ${file.path}! type: ${signature.type}`, 'warning');
                   let matchLine = 1;
                   for (let l = 0; l < lines.length; l++) {
                     if (signature.regex.test(lines[l])) {
@@ -285,7 +304,7 @@ export class AppService {
         );
       }
 
-      this.scanLog$.next({ repo: fullName, message: `Repository scan complete. Audited ${totalFilesScanned} files. Detections count: ${threats.length}`, type: 'success' });
+      this.addRepoLog(fullName, `Repository scan complete. Audited ${totalFilesScanned} files. Detections count: ${threats.length}`, 'success');
 
       // Persist scan record to MongoDB if service available
       if (githubLogin && typeof repoId === 'number') {
@@ -297,6 +316,7 @@ export class AppService {
             filesScanned: totalFilesScanned,
             threatsFound: threats.length,
             status: threats.length > 0 ? 'scanned' : 'cleaned',
+            threats: threats,
           });
         } catch (e) { /* Non-fatal: MongoDB may not be connected yet */ }
       }
@@ -307,7 +327,7 @@ export class AppService {
         threats,
       };
     } catch (error: any) {
-      this.scanLog$.next({ repo: fullName, message: `Scan aborted: ${error.message}`, type: 'warning' });
+      this.addRepoLog(fullName, `Scan aborted: ${error.message}`, 'warning');
       throw new HttpException(
         error.response?.data?.message || 'Failed to scan repository contents.',
         error.response?.status || HttpStatus.BAD_REQUEST,
@@ -328,7 +348,7 @@ export class AppService {
     severity?: string,
   ) {
     try {
-      this.scanLog$.next({ repo: fullName, message: `Patching files: Updating ${filePath}...`, type: 'info' });
+      this.addRepoLog(fullName, `Patching files: Updating ${filePath}...`, 'info');
 
       let commitSha = '';
 
@@ -348,7 +368,7 @@ export class AppService {
 
       // 2. If this was a leaked .env detection, delete the exposed file too
       if (deleteFilePath) {
-        this.scanLog$.next({ repo: fullName, message: `Removing leaked config file from repository: ${deleteFilePath}...`, type: 'warning' });
+        this.addRepoLog(fullName, `Removing leaked config file from repository: ${deleteFilePath}...`, 'warning');
 
         // Fetch target file SHA to delete it
         const fileData = await axios.get(
@@ -368,7 +388,7 @@ export class AppService {
         );
       }
 
-      this.scanLog$.next({ repo: fullName, message: `Clean task complete. Reference commit: ${commitSha.substring(0, 8)}`, type: 'success' });
+      this.addRepoLog(fullName, `Clean task complete. Reference commit: ${commitSha.substring(0, 8)}`, 'success');
 
       // Persist cleaned file record to MongoDB
       if (githubLogin && repoId) {
@@ -389,7 +409,7 @@ export class AppService {
         filePath,
       };
     } catch (error: any) {
-      this.scanLog$.next({ repo: fullName, message: `Remediation failed: ${error.message}`, type: 'warning' });
+      this.addRepoLog(fullName, `Remediation failed: ${error.message}`, 'warning');
       throw new HttpException(
         error.response?.data?.message || 'Failed to patch file contents on GitHub.',
         error.response?.status || HttpStatus.BAD_REQUEST,

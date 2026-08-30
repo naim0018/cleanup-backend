@@ -58,6 +58,11 @@ export declare class AppController {
     }> & {
         __v: number;
     })[]>;
+    getLogs(fullName: string): Promise<{
+        time: string;
+        level: string;
+        message: string;
+    }[]>;
     getRateLimit(authHeader?: string): Promise<{
         limit: any;
         used: any;

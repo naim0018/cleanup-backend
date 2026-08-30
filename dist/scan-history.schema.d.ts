@@ -15,6 +15,7 @@ export declare class ScanHistory {
     threatsCleaned: number;
     status: string;
     cleanedFiles: CleanedFile[];
+    threats: any[];
     lastScanDate: Date;
 }
 export declare const ScanHistorySchema: import("mongoose").Schema<ScanHistory, import("mongoose").Model<ScanHistory, any, any, any, any, any, ScanHistory>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, ScanHistory, Document<unknown, {}, ScanHistory, {
@@ -90,6 +91,15 @@ export declare const ScanHistorySchema: import("mongoose").Schema<ScanHistory, i
         id: string;
     }>> | undefined;
     cleanedFiles?: import("mongoose").SchemaDefinitionProperty<CleanedFile[], ScanHistory, Document<unknown, {}, ScanHistory, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<ScanHistory & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & import("mongoose").HydratedDocumentOverrides<{
+        id: string;
+    }>> | undefined;
+    threats?: import("mongoose").SchemaDefinitionProperty<any[], ScanHistory, Document<unknown, {}, ScanHistory, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<ScanHistory & {
         _id: import("mongoose").Types.ObjectId;

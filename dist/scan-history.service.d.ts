@@ -10,6 +10,7 @@ export declare class ScanHistoryService {
         filesScanned: number;
         threatsFound: number;
         status: string;
+        threats: any[];
     }): Promise<import("mongoose").Document<unknown, {}, ScanHistoryDocument, {}, import("mongoose").DefaultSchemaOptions> & ScanHistory & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
         _id: import("mongoose").Types.ObjectId;
     }> & {

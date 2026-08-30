@@ -53,7 +53,9 @@ let AuthController = class AuthController {
             if (!accessToken) {
                 return res.status(400).send('Failed to obtain access token from GitHub.');
             }
-            return res.redirect(`http://localhost:5173/login?token=${accessToken}`);
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+            const formattedFrontendUrl = frontendUrl.endsWith('/') ? frontendUrl.slice(0, -1) : frontendUrl;
+            return res.redirect(`${formattedFrontendUrl}/login?token=${accessToken}`);
         }
         catch (err) {
             return res.status(500).send(`Internal Server Error during token exchange: ${err.message}`);
