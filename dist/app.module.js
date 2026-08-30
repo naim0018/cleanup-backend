@@ -12,6 +12,7 @@ const config_1 = require("@nestjs/config");
 const mongoose_1 = require("@nestjs/mongoose");
 const app_controller_1 = require("./app.controller");
 const auth_controller_1 = require("./auth.controller");
+const root_controller_1 = require("./root.controller");
 const app_service_1 = require("./app.service");
 const scan_history_service_1 = require("./scan-history.service");
 const scan_history_schema_1 = require("./scan-history.schema");
@@ -31,7 +32,7 @@ exports.AppModule = AppModule = __decorate([
                 { name: scan_history_schema_1.ScanHistory.name, schema: scan_history_schema_1.ScanHistorySchema },
             ]),
         ],
-        controllers: [app_controller_1.AppController, auth_controller_1.AuthController],
+        controllers: [app_controller_1.AppController, auth_controller_1.AuthController, root_controller_1.RootController],
         providers: [app_service_1.AppService, scan_history_service_1.ScanHistoryService],
         exports: [scan_history_service_1.ScanHistoryService],
     })

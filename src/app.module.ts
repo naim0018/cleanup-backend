@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AuthController } from './auth.controller';
+import { RootController } from './root.controller';
 import { AppService } from './app.service';
 import { ScanHistoryService } from './scan-history.service';
 import { ScanHistory, ScanHistorySchema } from './scan-history.schema';
@@ -19,7 +20,7 @@ import { ScanHistory, ScanHistorySchema } from './scan-history.schema';
       { name: ScanHistory.name, schema: ScanHistorySchema },
     ]),
   ],
-  controllers: [AppController, AuthController],
+  controllers: [AppController, AuthController, RootController],
   providers: [AppService, ScanHistoryService],
   exports: [ScanHistoryService],
 })
