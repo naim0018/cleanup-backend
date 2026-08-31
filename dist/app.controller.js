@@ -68,6 +68,12 @@ let AppController = class AppController {
         const token = this.extractToken(authHeader);
         return this.appService.cleanFile(token, fullName, filePath, sha, cleanedCode, deleteFilePath, githubLogin, repoId, malwareType, severity);
     }
+    async archive(body) {
+        if (!body.githubLogin || !body.repoId) {
+            throw new common_1.HttpException('githubLogin and repoId are required.', common_1.HttpStatus.BAD_REQUEST);
+        }
+        return this.scanHistoryService.archiveScanRecord(body.githubLogin, body.repoId);
+    }
     async getHistory(githubLogin) {
         if (!githubLogin) {
             throw new common_1.HttpException('githubLogin query parameter is required.', common_1.HttpStatus.BAD_REQUEST);
@@ -143,6 +149,13 @@ __decorate([
     __metadata("design:paramtypes", [Object, String]),
     __metadata("design:returntype", Promise)
 ], AppController.prototype, "cleanFile", null);
+__decorate([
+    (0, common_1.Post)('archive'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AppController.prototype, "archive", null);
 __decorate([
     (0, common_1.Get)('history'),
     __param(0, (0, common_1.Query)('githubLogin')),

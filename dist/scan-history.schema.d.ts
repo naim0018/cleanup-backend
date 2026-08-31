@@ -14,6 +14,7 @@ export declare class ScanHistory {
     threatsFound: number;
     threatsCleaned: number;
     status: string;
+    archived: boolean;
     cleanedFiles: CleanedFile[];
     threats: any[];
     lastScanDate: Date;
@@ -82,6 +83,15 @@ export declare const ScanHistorySchema: import("mongoose").Schema<ScanHistory, i
         id: string;
     }>> | undefined;
     status?: import("mongoose").SchemaDefinitionProperty<string, ScanHistory, Document<unknown, {}, ScanHistory, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<ScanHistory & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & import("mongoose").HydratedDocumentOverrides<{
+        id: string;
+    }>> | undefined;
+    archived?: import("mongoose").SchemaDefinitionProperty<boolean, ScanHistory, Document<unknown, {}, ScanHistory, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<ScanHistory & {
         _id: import("mongoose").Types.ObjectId;

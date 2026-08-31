@@ -5,15 +5,17 @@ export declare class AppService {
     scanLog$: Subject<{
         repo: string;
         message: string;
-        type: "info" | "success" | "warning";
+        type: "info" | "success" | "warning" | "error";
+        progress?: number;
     }>;
     private repoLogs;
     constructor(scanHistoryService: ScanHistoryService);
-    addRepoLog(repo: string, message: string, type?: 'info' | 'success' | 'warning' | 'error'): void;
+    addRepoLog(repo: string, message: string, type?: 'info' | 'success' | 'warning' | 'error', progress?: number): void;
     getRepoLogs(repo: string): {
         time: string;
         level: string;
         message: string;
+        progress?: number;
     }[];
     private getHeaders;
     listRepositories(token: string): Promise<{

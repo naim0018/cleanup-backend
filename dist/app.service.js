@@ -46,10 +46,10 @@ let AppService = class AppService {
     constructor(scanHistoryService) {
         this.scanHistoryService = scanHistoryService;
     }
-    addRepoLog(repo, message, type = 'info') {
+    addRepoLog(repo, message, type = 'info', progress) {
         const timestamp = new Date().toLocaleTimeString();
-        const logItem = { time: timestamp, level: type, message };
-        this.scanLog$.next({ repo, message, type: type === 'error' ? 'warning' : type });
+        const logItem = { time: timestamp, level: type, message, progress };
+        this.scanLog$.next({ repo, message, type: type === 'error' ? 'warning' : type, progress });
         if (!this.repoLogs.has(repo)) {
             this.repoLogs.set(repo, []);
         }
@@ -152,18 +152,18 @@ let AppService = class AppService {
     }
     async scanRepository(token, fullName, githubLogin, repoId) {
         try {
-            this.addRepoLog(fullName, `Fetching repository branch configurations...`, 'info');
+            this.addRepoLog(fullName, `Fetching repository branch configurations...`, 'info', 1);
             const repoInfo = await axios_1.default.get(`https://api.github.com/repos/${fullName}`, {
                 headers: this.getHeaders(token),
             });
             const defaultBranch = repoInfo.data.default_branch || 'main';
-            this.addRepoLog(fullName, `Loading recursive directory structure for tree root...`, 'info');
+            this.addRepoLog(fullName, `Loading recursive directory structure for tree root...`, 'info', 3);
             const treeResponse = await axios_1.default.get(`https://api.github.com/repos/${fullName}/git/trees/${defaultBranch}?recursive=1`, { headers: this.getHeaders(token) });
             const items = treeResponse.data.tree || [];
             const codeFiles = items.filter((item) => item.type === 'blob');
             const hasGitignore = items.some((item) => item.path === '.gitignore');
             const gitignoreSha = items.find((item) => item.path === '.gitignore')?.sha || '';
-            this.addRepoLog(fullName, `Discovered ${codeFiles.length} JScript/TypeScript files to audit.`, 'info');
+            this.addRepoLog(fullName, `Discovered ${codeFiles.length} files in repository tree.`, 'info', 5);
             const threats = [];
             let totalFilesScanned = 0;
             const batchSize = 10;
@@ -171,10 +171,18 @@ let AppService = class AppService {
                 const batch = codeFiles.slice(i, i + batchSize);
                 await Promise.all(batch.map(async (file) => {
                     try {
-                        this.addRepoLog(fullName, `Auditing code buffer: ${file.path}`, 'info');
+                        const isSourceCode = file.path.endsWith('.js') ||
+                            file.path.endsWith('.jsx') ||
+                            file.path.endsWith('.ts') ||
+                            file.path.endsWith('.tsx') ||
+                            file.path.endsWith('.mjs') ||
+                            file.path.endsWith('.cjs');
+                        totalFilesScanned++;
+                        const currentProgress = codeFiles.length > 0 ? 5 + Math.floor((totalFilesScanned / codeFiles.length) * 90) : 95;
+                        this.addRepoLog(fullName, `Auditing code buffer: ${file.path}`, 'info', currentProgress);
                         const filename = file.path.split('/').pop() || '';
                         if (filename.startsWith('.env') && filename !== '.env.example') {
-                            this.addRepoLog(fullName, `⚠️ Exposed environment config leaked: ${file.path}!`, 'warning');
+                            this.addRepoLog(fullName, `⚠️ Exposed environment config leaked: ${file.path}!`, 'warning', currentProgress);
                             let gitignoreContent = '';
                             try {
                                 if (hasGitignore) {
@@ -202,18 +210,10 @@ let AppService = class AppService {
                             });
                             return;
                         }
-                        const isSourceCode = file.path.endsWith('.js') ||
-                            file.path.endsWith('.jsx') ||
-                            file.path.endsWith('.ts') ||
-                            file.path.endsWith('.tsx') ||
-                            file.path.endsWith('.mjs') ||
-                            file.path.endsWith('.cjs');
                         if (!isSourceCode) {
-                            totalFilesScanned++;
                             return;
                         }
                         const fileData = await axios_1.default.get(`https://api.github.com/repos/${fullName}/contents/${file.path}`, { headers: this.getHeaders(token) });
-                        totalFilesScanned++;
                         const content = Buffer.from(fileData.data.content, 'base64').toString('utf8');
                         const lines = content.split('\n');
                         for (const signature of MALWARE_SIGNATURES) {
@@ -247,7 +247,7 @@ let AppService = class AppService {
                     }
                 }));
             }
-            this.addRepoLog(fullName, `Repository scan complete. Audited ${totalFilesScanned} files. Detections count: ${threats.length}`, 'success');
+            this.addRepoLog(fullName, `Repository scan complete. Audited ${totalFilesScanned} files. Detections count: ${threats.length}`, 'success', 100);
             if (githubLogin && typeof repoId === 'number') {
                 try {
                     await this.scanHistoryService.upsertScanRecord({

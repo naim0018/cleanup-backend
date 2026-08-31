@@ -35,7 +35,8 @@ export declare class AppController {
         data: {
             repo: string;
             message: string;
-            type: "info" | "success" | "warning";
+            type: "info" | "success" | "warning" | "error";
+            progress?: number;
         };
     }>;
     cleanFile(body: {
@@ -53,6 +54,16 @@ export declare class AppController {
         commitSha: string;
         filePath: string;
     }>;
+    archive(body: {
+        githubLogin: string;
+        repoId: number;
+    }): Promise<(import("mongoose").Document<unknown, {}, import("./scan-history.schema").ScanHistoryDocument, {}, import("mongoose").DefaultSchemaOptions> & import("./scan-history.schema").ScanHistory & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }> & {
+        __v: number;
+    } & {
+        id: string;
+    }) | null>;
     getHistory(githubLogin: string): Promise<(import("./scan-history.schema").ScanHistory & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
         _id: import("mongoose").Types.ObjectId;
     }> & {
@@ -62,6 +73,7 @@ export declare class AppController {
         time: string;
         level: string;
         message: string;
+        progress?: number;
     }[]>;
     getRateLimit(authHeader?: string): Promise<{
         limit: any;

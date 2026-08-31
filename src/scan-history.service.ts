@@ -82,6 +82,14 @@ export class ScanHistoryService {
     );
   }
 
+  async archiveScanRecord(githubLogin: string, repoId: number) {
+    return this.scanHistoryModel.findOneAndUpdate(
+      { githubLogin, repoId },
+      { $set: { archived: true } },
+      { new: true },
+    );
+  }
+
   async getHistory(githubLogin: string) {
     return this.scanHistoryModel
       .find({ githubLogin })

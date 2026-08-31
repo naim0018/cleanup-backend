@@ -31,6 +31,13 @@ export declare class ScanHistoryService {
     } & {
         id: string;
     }) | null>;
+    archiveScanRecord(githubLogin: string, repoId: number): Promise<(import("mongoose").Document<unknown, {}, ScanHistoryDocument, {}, import("mongoose").DefaultSchemaOptions> & ScanHistory & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }> & {
+        __v: number;
+    } & {
+        id: string;
+    }) | null>;
     getHistory(githubLogin: string): Promise<(ScanHistory & import("mongoose").Document<import("mongoose").Types.ObjectId, any, any, Record<string, any>, {}> & Required<{
         _id: import("mongoose").Types.ObjectId;
     }> & {

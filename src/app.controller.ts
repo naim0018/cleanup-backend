@@ -87,6 +87,19 @@ export class AppController {
     return this.appService.cleanFile(token, fullName, filePath, sha, cleanedCode, deleteFilePath, githubLogin, repoId, malwareType, severity);
   }
 
+  @Post('archive')
+  async archive(
+    @Body() body: {
+      githubLogin: string;
+      repoId: number;
+    }
+  ) {
+    if (!body.githubLogin || !body.repoId) {
+      throw new HttpException('githubLogin and repoId are required.', HttpStatus.BAD_REQUEST);
+    }
+    return this.scanHistoryService.archiveScanRecord(body.githubLogin, body.repoId);
+  }
+
   @Get('history')
   async getHistory(@Query('githubLogin') githubLogin: string) {
     if (!githubLogin) {

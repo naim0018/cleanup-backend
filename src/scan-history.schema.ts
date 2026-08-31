@@ -41,6 +41,9 @@ export class ScanHistory {
   @Prop({ default: 'idle', enum: ['idle', 'scanned', 'cleaned'] })
   status: string;
 
+  @Prop({ default: false })
+  archived: boolean;
+
   @Prop({ type: [{ filePath: String, malwareType: String, severity: String, cleanedAt: Date }], default: [] })
   cleanedFiles: CleanedFile[];
 
